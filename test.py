@@ -2,10 +2,10 @@ import requests
 import re
 import json
 from bs4 import BeautifulSoup
+import sys
 
 
-def get_users(links):
-
+def get_users(links, iter_count=3):
     users = []
 
     for link in links:
@@ -23,9 +23,13 @@ def get_users(links):
         has_next_page = page_info['graphql']['location']['edge_location_to_media']['page_info']['has_next_page']
         end_cursor = page_info['graphql']['location']['edge_location_to_media']['page_info']['end_cursor']
 
-        while has_next_page:
+        i = 0
+        while has_next_page and i < iter_count:
+            i += 1
+            print(i)
 
-            url = 'https://www.instagram.com/graphql/query/?query_hash=ac38b90f0f3981c42092016a37c59bf7&variables={"id":"' + id +  '","first":12,"after":"' + end_cursor + '"}'
+
+            url = 'https://www.instagram.com/graphql/query/?query_hash=ac38b90f0f3981c42092016a37c59bf7&variables={"id":"' + id + '","first":12,"after":"' + end_cursor + '"}'
             context = {
                 'Cookie': r'TODO'
             }
@@ -46,6 +50,7 @@ def get_users(links):
             validated.append(user)
 
     phones = {}
+    print(validated)
 
     for user in validated:
         num = find_phone_number(user)
@@ -58,7 +63,6 @@ def get_users(links):
 
 
 def extract_users(posts):
-
     users = []
     for post in posts:
         post = post['node']
@@ -69,7 +73,6 @@ def extract_users(posts):
 
 
 def validate_user(username):
-
     url = 'https://www.instagram.com/' + username
 
     html = requests.get(url).text
@@ -91,22 +94,22 @@ def validate_user(username):
 
 
 def find_phone_number(username):
-
     url = 'https://www.instagram.com/' + username
 
     html = requests.get(url).text
 
-    description = re.search(r'description":(.*)"', html).group(0)
-    phone_num = re.search(r'\+\d{9,13}', description)
+    description = re.search(r'description":(.*)"', html)
+    if description is not None:
+        description = description.group(0)
+        phone_num = re.search(r'\+\d{9,13}', description)
 
-    if phone_num is not None:
-        return phone_num.group(0)
-    else:
-        return None
+        if phone_num is not None:
+            return phone_num.group(0)
+        else:
+            return None
 
 
 def get_user_name_by_post(shortcode):
-
     url = 'https://instagram.com/p/' + shortcode + '/?__a=1'
 
     request = requests.get(url).text
@@ -119,12 +122,14 @@ def get_user_name_by_post(shortcode):
 
 if __name__ == '__main__':
 
+    iter_count = int(sys.argv[1])
+
     with open('input.txt', 'r') as f:
         links = f.readlines()
 
     links = [x.strip() for x in links]
 
-    phones = get_users(links)
+    phones = get_users(links, iter_count)
 
     with open('output.txt', 'a') as f:
         for user in phones.keys():
